@@ -1,223 +1,210 @@
 import redis
-import io
 from docx import Document
-from docx.shared import Inches
-from PIL import Image, ImageDraw, ImageFont
+from docx.shared import Pt, RGBColor
+import time
 
-def format_output(res, base_indent=""):
-    """Formata as respostas reais do Redis para imitar perfeitamente o redis-cli, incluindo listas aninhadas"""
-    if res is True:
-        return "(integer) 1"
-    if res is False:
+# Conexão com o Redis local (Padrão no Debian)
+# decode_responses=True converte os bytes em strings automaticamente
+r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+def format_redis_output(result):
+    """Formata a saída do redis-py para se assemelhar ao output do redis-cli"""
+    if result is True or result == "OK": 
+        return "OK"
+    if result is False: 
         return "(integer) 0"
-    if res is None:
+    if result is None: 
         return "(nil)"
-    if isinstance(res, int):
-        return f"(integer) {res}"
-    if isinstance(res, bytes):
-        # Decodifica bytes para string
-        return f'"{res.decode("utf-8")}"'
-    if isinstance(res, str):
-        # O Redis só não coloca aspas quando a resposta é um OK genérico
-        return res if res == 'OK' else f'"{res}"'
-    if isinstance(res, list):
-        if not res:
-            return "(empty array)"
-        
+    if isinstance(result, int): 
+        return f"(integer) {result}"
+    if isinstance(result, float): 
+        return f'"{result}"'
+    if isinstance(result, str): 
+        return f'"{result}"'
+    if isinstance(result, (list, tuple)):
+        if not result: return "(empty array)"
         lines = []
-        for i, item in enumerate(res):
-            prefix = f"{i+1}) "
-            if isinstance(item, list):
-                # Resolve as indentações de listas dentro de listas (como no comando SCAN)
-                sub_lines = format_output(item).split('\n')
-                lines.append(f"{base_indent}{prefix}{sub_lines[0]}")
-                
-                # Calcula o espaço para manter o alinhamento das sub-listas
-                padding = " " * len(prefix)
-                for sub in sub_lines[1:]:
-                    lines.append(f"{base_indent}{padding}{sub}")
+        for i, item in enumerate(result):
+            if isinstance(item, (list, tuple)):
+                # Tratamento para arrays aninhados (ex: retorno do SCAN)
+                sub_lines = [f"    {j+1}) \"{str(x)}\"" for j, x in enumerate(item)]
+                lines.append(f"{i+1}) \n" + "\n".join(sub_lines))
             else:
-                lines.append(f"{base_indent}{prefix}{format_output(item)}")
+                lines.append(f"{i+1}) \"{str(item)}\"")
         return "\n".join(lines)
-    
-    return str(res)
-
-def format_cmd_string(cmd_list):
-    """Garante que strings com espaço recebam aspas (ex: "Estudar Redis") para a visualização correta"""
-    formatted_parts = []
-    for part in cmd_list:
-        if ' ' in part:
-            formatted_parts.append(f'"{part}"')
-        else:
-            formatted_parts.append(part)
-    return " ".join(formatted_parts)
-
-def create_terminal_image(text):
-    """Fabrica a imagem PNG em memória imitando o terminal Ubuntu/Redis-cli"""
-    try:
-        font = ImageFont.load_default(size=16)
-        char_width, line_height = 10, 22
-    except TypeError:
-        font = ImageFont.load_default()
-        char_width, line_height = 8, 15
-
-    linhas = text.split('\n')
-    max_caracteres = max([len(linha) for linha in linhas] + [1])
-    
-    largura = (max_caracteres * char_width) + 40
-    altura = (len(linhas) * line_height) + 40
-
-    img = Image.new('RGB', (largura, altura), color=(12, 12, 12))
-    d = ImageDraw.Draw(img)
-
-    d.multiline_text((20, 20), text, font=font, fill=(204, 204, 204), spacing=4)
-
-    img_stream = io.BytesIO()
-    img.save(img_stream, format='PNG')
-    img_stream.seek(0)
-    
-    return img_stream
+    return str(result)
 
 def main():
-    try:
-        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
-        r.ping()
-        print("Conectado ao Redis com sucesso! Executando comandos REAIS e gerando documento...")
-    except redis.ConnectionError:
-        print("Erro: Não foi possível conectar ao Redis na porta 6379.")
-        return
-
-    exercicios = {
-        1: {
-            "run": [["SET", "usuario", "Carlos"], ["GET", "usuario"], ["SET", "usuario", "Carlos Silva"], ["GET", "usuario"]]
-        },
-        2: {
-            "run": [["MSET", "produto", "Notebook", "preco", "3500", "estoque", "15"], ["MGET", "produto", "preco", "estoque"]]
-        },
-        3: {
-            "run": [["SETNX", "admin", "true"], ["SETNX", "admin", "false"]]
-        },
-        4: {
-            "run": [["SET", "nome", "Maria"], ["APPEND", "nome", " Oliveira"], ["STRLEN", "nome"], ["GETRANGE", "nome", "0", "4"]]
-        },
-        5: {
-            "run": [["SET", "cidade", "Campinas"], ["SETRANGE", "cidade", "0", "São "], ["GET", "cidade"]]
-        },
-        6: {
-            "run": [["SET", "pontos", "10"], ["INCR", "pontos"], ["INCRBY", "pontos", "5"], ["DECRBY", "pontos", "3"], ["GET", "pontos"]]
-        },
-        7: {
-            "run": [["SET", "saldo", "100.50"], ["INCRBYFLOAT", "saldo", "25.75"], ["GET", "saldo"]]
-        },
-        8: {
-            "run": [["SET", "token", "xyz123", "EX", "60"], ["TTL", "token"], ["PERSIST", "token"], ["TTL", "token"]]
-        },
-        9: {
-            "run": [["SET", "sessao", "ativa"], ["PEXPIRE", "sessao", "5000"], ["PTTL", "sessao"]]
-        },
-        10: {
-            "run": [["SET", "curso", "Redis"], ["RENAME", "curso", "disciplina"], ["COPY", "disciplina", "backup_disciplina"], ["TYPE", "disciplina"], ["EXISTS", "disciplina"], ["DEL", "disciplina"]]
-        },
-        11: {
-            "run": [["SET", "minha_chave", "teste"], ["MOVE", "minha_chave", "1"], ["SELECT", "1"], ["GET", "minha_chave"], ["SELECT", "0"]]
-        },
-        12: {
-            "run": [["MSET", "k1", "1", "k2", "2", "k3", "3", "k4", "4", "k5", "5"], ["KEYS", "*"], ["SCAN", "0"]]
-        },
-        13: {
-            "run": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios", "Dormir"], ["LRANGE", "tarefas", "0", "-1"]]
-        },
-        14: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios", "Dormir"]], 
-            "run": [["LLEN", "tarefas"], ["LINDEX", "tarefas", "0"], ["LINDEX", "tarefas", "-1"]]
-        },
-        15: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios", "Dormir"]], 
-            "run": [["LSET", "tarefas", "1", "Fazer Exercicios Praticos"], ["LRANGE", "tarefas", "0", "-1"]]
-        },
-        16: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios Praticos", "Dormir"]], 
-            "run": [["LINSERT", "tarefas", "BEFORE", "Dormir", "Tomar Cafe"], ["LRANGE", "tarefas", "0", "-1"]]
-        },
-        17: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios Praticos", "Tomar Cafe", "Dormir"]], 
-            "run": [["LPOP", "tarefas"], ["RPOP", "tarefas"], ["LRANGE", "tarefas", "0", "-1"]]
-        },
-        18: {
-            "run": [["RPUSH", "fila_atividade_pendente", "Tarefa 1", "Tarefa 2"], ["LMOVE", "fila_atividade_pendente", "fila_atividade_processando", "LEFT", "RIGHT"]]
-        },
-        19: {
-            "run": [["RPUSH", "logs", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10"], ["LTRIM", "logs", "-5", "-1"], ["LRANGE", "logs", "0", "-1"]]
-        },
-        20: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios"]], 
-            "run": [["RPUSH", "tarefas", "Dormir", "Dormir", "Dormir"], ["LREM", "tarefas", "1", "Dormir"], ["LREM", "tarefas", "0", "Dormir"], ["LRANGE", "tarefas", "0", "-1"]]
-        },
-        21: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios", "Dormir", "Tomar Cafe", "Dormir"]], 
-            "run": [["LPOS", "tarefas", "Estudar Redis"], ["LPOS", "tarefas", "Dormir", "COUNT", "0"]]
-        },
-        22: {
-            "setup": [["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercicios", "Estudar Redis", "Dormir"]], 
-            "run": [["LREM", "tarefas", "0", "Estudar Redis"], ["DEL", "tarefas"]]
-        },
-        23: {
-            "run": [["RPUSH", "lista_temp", "item1", "item2"], ["EXPIRE", "lista_temp", "10"], ["TTL", "lista_temp"], ["EXISTS", "lista_temp"]]
-        },
-        24: {
-            "run": [
-                ["SET", "ip:192.168.1.50:tentativas", "1", "EX", "10", "NX"],
-                ["INCR", "ip:192.168.1.50:tentativas"],
-                ["INCR", "ip:192.168.1.50:tentativas"],
-                ["GET", "ip:192.168.1.50:tentativas"],
-                ["INCRBY", "ip:192.168.1.50:tentativas", "3"],
-                ["SET", "ip:192.168.1.50:bloqueado", "true", "EX", "3600"],
-                ["EXISTS", "ip:192.168.1.50:bloqueado"]
-            ]
-        }
-    }
+    # Limpa os bancos de dados para garantir que os testes rodem de forma limpa
+    r.flushall()
 
     doc = Document()
-    doc.add_heading('Resolução: Exercícios Práticos - Redis CLI', 0)
+    doc.add_heading('Lista de Exercícios Práticos - Resultados Redis CLI', 0)
 
-    for ex_num, block in exercicios.items():
-        doc.add_heading(f'Exercício {ex_num}', level=1)
-        
-        # GARANTIA ABSOLUTA DE ISOLAMENTO: Limpa completamente a engine do Redis
-        # antes de rodar cada exercício, garantindo que nenhum lixo vaze.
-        r.flushall() 
-        
-        # Roda a preparação invisível (se houver)
-        for cmd in block.get("setup", []):
-            try:
-                r.execute_command(*cmd)
-            except Exception:
-                pass
+    # Definição dos 24 exercícios
+    exercicios = [
+        (1, "Cadastro de Usuário", [
+            ["SET", "usuario", "Carlos"],
+            ["GET", "usuario"],
+            ["SET", "usuario", "Carlos Silva"],
+            ["GET", "usuario"]
+        ]),
+        (2, "Cadastro de Produto", [
+            ["MSET", "produto", "Notebook", "preco", "3500", "estoque", "15"],
+            ["MGET", "produto", "preco", "estoque"]
+        ]),
+        (3, "Controle de Login", [
+            ["SETNX", "admin", "token_123"],
+            ["SETNX", "admin", "token_456"]
+        ]),
+        (4, "Nome Completo", [
+            ["SET", "nome", "Maria"],
+            ["APPEND", "nome", " Oliveira"],
+            ["STRLEN", "nome"],
+            ["GETRANGE", "nome", "0", "4"]
+        ]),
+        (5, "Alteração Parcial", [
+            ["SET", "cidade", "Campinas"],
+            ["SETRANGE", "cidade", "0", "São "],
+            ["GET", "cidade"]
+        ]),
+        (6, "Sistema de Pontuação", [
+            ["SET", "pontos", "10"],
+            ["INCR", "pontos"],
+            ["INCRBY", "pontos", "5"],
+            ["DECRBY", "pontos", "3"],
+            ["GET", "pontos"]
+        ]),
+        (7, "Carteira Digital", [
+            ["SET", "saldo", "100.50"],
+            ["INCRBYFLOAT", "saldo", "25.75"],
+            ["GET", "saldo"]
+        ]),
+        (8, "Token Temporário", [
+            ["SETEX", "token", "60", "xyz987"],
+            ["TTL", "token"],
+            ["PERSIST", "token"],
+            ["TTL", "token"]
+        ]),
+        (9, "Expiração em Milissegundos", [
+            ["SET", "sessao", "abc123"],
+            ["PEXPIRE", "sessao", "5000"],
+            ["PTTL", "sessao"]
+        ]),
+        (10, "Gerenciamento de Chaves", [
+            ["SET", "curso", "Redis"],
+            ["RENAME", "curso", "disciplina"],
+            ["COPY", "disciplina", "backup_disciplina"],
+            ["TYPE", "disciplina"],
+            ["EXISTS", "disciplina"],
+            ["DEL", "disciplina"]
+        ]),
+        (11, "Banco Redis", [
+            ["SET", "chave_teste", "Estou no DB 0"],
+            ["MOVE", "chave_teste", "1"],
+            ["SELECT", "1"],
+            ["GET", "chave_teste"],
+            ["SELECT", "0"] # Volta para o banco padrão
+        ]),
+        (12, "Listagem de Chaves", [
+            ["MSET", "k1", "v1", "k2", "v2", "k3", "v3", "k4", "v4", "k5", "v5"],
+            ["KEYS", "*"],
+            ["SCAN", "0"]
+        ]),
+        (13, "Lista de Tarefas", [
+            ["RPUSH", "tarefas", "Estudar Redis", "Fazer Exercícios", "Dormir"],
+            ["LRANGE", "tarefas", "0", "-1"]
+        ]),
+        (14, "Controle de Fila", [
+            ["LLEN", "tarefas"],
+            ["LINDEX", "tarefas", "0"],
+            ["LINDEX", "tarefas", "-1"]
+        ]),
+        (15, "Alteração de Item", [
+            ["LSET", "tarefas", "1", "Fazer Exercícios Práticos"],
+            ["LRANGE", "tarefas", "0", "-1"]
+        ]),
+        (16, "Inserção Estratégica", [
+            ["LINSERT", "tarefas", "BEFORE", "Dormir", "Tomar Café"],
+            ["LRANGE", "tarefas", "0", "-1"]
+        ]),
+        (17, "Remoção de Elementos", [
+            ["LPOP", "tarefas"],
+            ["RPOP", "tarefas"],
+            ["LRANGE", "tarefas", "0", "-1"]
+        ]),
+        (18, "Movendo Itens Entre Filas", [
+            ["RPUSH", "fila_atividade_pendente", "Job_A", "Job_B"],
+            ["LMOVE", "fila_atividade_pendente", "fila_atividade_processando", "LEFT", "RIGHT"],
+            ["LRANGE", "fila_atividade_processando", "0", "-1"]
+        ]),
+        (19, "Histórico Limitado", [
+            ["RPUSH", "logs", "log1", "log2", "log3", "log4", "log5", "log6", "log7", "log8", "log9", "log10"],
+            ["LTRIM", "logs", "-5", "-1"],
+            ["LRANGE", "logs", "0", "-1"]
+        ]),
+        (20, "Remoção por Valor", [
+            ["RPUSH", "tarefas", "Dormir", "Dormir", "Dormir"],
+            ["LREM", "tarefas", "1", "Dormir"],
+            ["LREM", "tarefas", "0", "Dormir"],
+            ["LRANGE", "tarefas", "0", "-1"]
+        ]),
+        (21, "Localização de Elementos", [
+            ["RPUSH", "tarefas", "Estudar Redis"],
+            ["LPOS", "tarefas", "Estudar Redis"],
+            ["RPUSH", "tarefas", "ItemRepetido", "ItemRepetido"],
+            ["LPOS", "tarefas", "ItemRepetido", "COUNT", "0"]
+        ]),
+        (22, "Remoção Múltipla", [
+            ["RPUSH", "tarefas_multi", "A", "B", "C", "D"],
+            ["LPOP", "tarefas_multi", "3"],
+            ["LRANGE", "tarefas_multi", "0", "-1"]
+        ]),
+        (23, "Expiração em Listas", [
+            ["RPUSH", "lista_temporaria", "Item1"],
+            ["EXPIRE", "lista_temporaria", "2"],
+            ["TTL", "lista_temporaria"]
+        ]),
+        (24, "Desafio - Fila de Atualização do Debian", [
+            # Fluxo simulando uma fila de tarefas de um sysadmin Debian
+            ["RPUSH", "debian:fila_apt", "apt update", "apt upgrade -y", "apt autoremove -y"],
+            ["LRANGE", "debian:fila_apt", "0", "-1"],
+            ["LPOP", "debian:fila_apt"], # Processando a primeira task
+            ["SET", "debian:status_servico", "Atualizando pacotes...", "EX", "300"],
+            ["GET", "debian:status_servico"]
+        ])
+    ]
 
-        output_lines = []
-        for cmd in block.get("run", []):
-            # Transforma as palavras do comando em string colocando aspas nas que tem espaço
-            cmd_str = format_cmd_string(cmd)
-            output_lines.append(f"127.0.0.1:6379> {cmd_str}")
-            
+    for num, titulo, comandos in exercicios:
+        doc.add_heading(f'Exercício {num} - {titulo}', level=1)
+        
+        # Criação do bloco de simulação de terminal
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(12)
+        
+        for cmd in comandos:
+            cmd_str = " ".join(cmd)
+            # Executa o comando no Redis enviando os argumentos brutos
             try:
-                # EXECUÇÃO REAL do comando no banco de dados
-                res = r.execute_command(*cmd)
-                # Formata baseando-se no tipo do dado retornado pela engine
-                res_str = format_output(res)
-                output_lines.append(res_str)
+                # O python desempacota a lista com o *cmd
+                resultado = r.execute_command(*cmd) 
+                saida_formatada = format_redis_output(resultado)
+                texto = f"127.0.0.1:6379> {cmd_str}\n{saida_formatada}\n"
             except Exception as e:
-                output_lines.append(f"(error) ERR {str(e)}")
-
-        texto_terminal = "\n".join(output_lines)
-        img_stream = create_terminal_image(texto_terminal)
-        
-        doc.add_picture(img_stream, width=Inches(5.5))
-        print(f"Exercício {ex_num} executado e processado com sucesso.")
-
-    nome_arquivo = "Lista_Exercicios_Redis.docx"
-    doc.save(nome_arquivo)
-    print(f"\nDocumento '{nome_arquivo}' gerado com sucesso com outputs REAIS!")
+                texto = f"127.0.0.1:6379> {cmd_str}\n(error) {str(e)}\n"
+            
+            # Adicionando o texto no parágrafo com fonte monoespaçada
+            run = p.add_run(texto)
+            run.font.name = 'Courier New'
+            run.font.size = Pt(10)
+            
+    # Salva o arquivo final
+    doc.save('Resultados_Redis.docx')
+    print("Arquivo 'Resultados_Redis.docx' gerado com sucesso!")
 
 if __name__ == "__main__":
-    main()
+    try:
+        r.ping()
+        main()
+    except redis.exceptions.ConnectionError:
+        print("Erro: Não foi possível conectar ao Redis. Verifique se o serviço está rodando no Debian (sudo systemctl status redis-server).")
