@@ -1,0 +1,4 @@
+127.0.0.1:6379> RPUSH fila_atividade_pendente Tarefa 1 Tarefa 2
+(integer) 2
+127.0.0.1:6379> LMOVE fila_atividade_pendente fila_atividade_processando LEFT RIGHT
+"Tarefa 1"

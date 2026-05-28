@@ -1,0 +1,6 @@
+127.0.0.1:6379> LSET tarefas 1 Fazer Exercícios Práticos
+(integer) 1
+127.0.0.1:6379> LRANGE tarefas 0 -1
+1) "Estudar Redis"
+2) "Fazer Exercícios Práticos"
+3) "Dormir"

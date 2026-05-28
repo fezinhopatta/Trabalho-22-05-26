@@ -1,0 +1,8 @@
+127.0.0.1:6379> SET nome Maria
+(integer) 1
+127.0.0.1:6379> APPEND nome  Oliveira
+(integer) 14
+127.0.0.1:6379> STRLEN nome
+(integer) 14
+127.0.0.1:6379> GETRANGE nome 0 4
+"Maria"

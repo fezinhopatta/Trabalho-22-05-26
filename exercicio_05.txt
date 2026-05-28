@@ -1,0 +1,6 @@
+127.0.0.1:6379> SET cidade Campinas
+(integer) 1
+127.0.0.1:6379> SETRANGE cidade 0 São 
+(integer) 8
+127.0.0.1:6379> GET cidade
+"São nas"

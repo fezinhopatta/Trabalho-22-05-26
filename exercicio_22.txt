@@ -1,0 +1,4 @@
+127.0.0.1:6379> LREM tarefas 0 Estudar Redis
+(integer) 0
+127.0.0.1:6379> DEL tarefas
+(integer) 1

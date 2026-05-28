@@ -1,0 +1,6 @@
+127.0.0.1:6379> RPUSH tarefas Estudar Redis Fazer Exercícios Dormir
+(integer) 3
+127.0.0.1:6379> LRANGE tarefas 0 -1
+1) "Estudar Redis"
+2) "Fazer Exercícios"
+3) "Dormir"

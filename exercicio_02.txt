@@ -1,0 +1,6 @@
+127.0.0.1:6379> MSET produto Notebook preco 3500 estoque 15
+(integer) 1
+127.0.0.1:6379> MGET produto preco estoque
+1) "Notebook"
+2) "3500"
+3) "15"

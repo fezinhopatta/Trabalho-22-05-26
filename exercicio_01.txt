@@ -1,0 +1,8 @@
+127.0.0.1:6379> SET usuario Carlos
+(integer) 1
+127.0.0.1:6379> GET usuario
+"Carlos"
+127.0.0.1:6379> SET usuario Carlos Silva
+(integer) 1
+127.0.0.1:6379> GET usuario
+"Carlos Silva"

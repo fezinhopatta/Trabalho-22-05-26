@@ -1,0 +1,6 @@
+127.0.0.1:6379> SET sessao ativa
+(integer) 1
+127.0.0.1:6379> PEXPIRE sessao 5000
+(integer) 1
+127.0.0.1:6379> PTTL sessao
+(integer) 4999

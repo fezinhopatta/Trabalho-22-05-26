@@ -1,0 +1,8 @@
+127.0.0.1:6379> RPUSH lista_temp item1 item2
+(integer) 2
+127.0.0.1:6379> EXPIRE lista_temp 10
+(integer) 1
+127.0.0.1:6379> TTL lista_temp
+(integer) 10
+127.0.0.1:6379> EXISTS lista_temp
+(integer) 1

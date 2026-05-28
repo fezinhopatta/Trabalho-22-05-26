@@ -1,0 +1,14 @@
+127.0.0.1:6379> SET ip:192.168.1.50:tentativas 1 EX 10 NX
+(integer) 1
+127.0.0.1:6379> INCR ip:192.168.1.50:tentativas
+(integer) 2
+127.0.0.1:6379> INCR ip:192.168.1.50:tentativas
+(integer) 3
+127.0.0.1:6379> GET ip:192.168.1.50:tentativas
+"3"
+127.0.0.1:6379> INCRBY ip:192.168.1.50:tentativas 3
+(integer) 6
+127.0.0.1:6379> SET ip:192.168.1.50:bloqueado true EX 3600
+(integer) 1
+127.0.0.1:6379> EXISTS ip:192.168.1.50:bloqueado
+(integer) 1

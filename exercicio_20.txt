@@ -1,0 +1,6 @@
+127.0.0.1:6379> RPUSH tarefas_repetidas Dormir Dormir Dormir
+(integer) 3
+127.0.0.1:6379> LREM tarefas_repetidas 1 Dormir
+(integer) 1
+127.0.0.1:6379> LREM tarefas_repetidas 0 Dormir
+(integer) 2

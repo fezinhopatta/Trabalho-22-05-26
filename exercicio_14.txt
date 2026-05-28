@@ -1,0 +1,6 @@
+127.0.0.1:6379> LLEN tarefas
+(integer) 3
+127.0.0.1:6379> LINDEX tarefas 0
+"Estudar Redis"
+127.0.0.1:6379> LINDEX tarefas -1
+"Dormir"

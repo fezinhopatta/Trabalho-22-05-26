@@ -1,0 +1,20 @@
+127.0.0.1:6379> MSET k1 1 k2 2 k3 3 k4 4 k5 5
+(integer) 1
+127.0.0.1:6379> KEYS *
+1) "k3"
+2) "saldo"
+3) "produto"
+4) "k4"
+5) "k2"
+6) "backup_disciplina"
+7) "cidade"
+8) "sessao"
+9) "usuario"
+10) "preco"
+11) "admin"
+12) "pontos"
+13) "token"
+14) "estoque"
+15) "nome"
+16) "k5"
+17) "k1"

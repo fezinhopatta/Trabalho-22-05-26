@@ -1,0 +1,12 @@
+127.0.0.1:6379> SET curso Redis
+(integer) 1
+127.0.0.1:6379> RENAME curso disciplina
+(integer) 1
+127.0.0.1:6379> COPY disciplina backup_disciplina
+(integer) 1
+127.0.0.1:6379> TYPE disciplina
+"string"
+127.0.0.1:6379> EXISTS disciplina
+(integer) 1
+127.0.0.1:6379> DEL disciplina
+(integer) 1

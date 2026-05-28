@@ -1,0 +1,8 @@
+127.0.0.1:6379> SET token xyz123 EX 60
+(integer) 1
+127.0.0.1:6379> TTL token
+(integer) 60
+127.0.0.1:6379> PERSIST token
+(integer) 1
+127.0.0.1:6379> TTL token
+(integer) -1

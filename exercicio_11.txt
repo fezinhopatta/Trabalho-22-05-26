@@ -1,0 +1,10 @@
+127.0.0.1:6379> SET minha_chave teste
+(integer) 1
+127.0.0.1:6379> MOVE minha_chave 1
+(integer) 1
+127.0.0.1:6379> SELECT 1
+(integer) 1
+127.0.0.1:6379> GET minha_chave
+"teste"
+127.0.0.1:6379> SELECT 0
+(integer) 1

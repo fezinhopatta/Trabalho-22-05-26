@@ -1,0 +1,10 @@
+127.0.0.1:6379> RPUSH logs L1 L2 L3 L4 L5 L6 L7 L8 L9 L10
+(integer) 10
+127.0.0.1:6379> LTRIM logs -5 -1
+(integer) 1
+127.0.0.1:6379> LRANGE logs 0 -1
+1) "L6"
+2) "L7"
+3) "L8"
+4) "L9"
+5) "L10"

@@ -1,0 +1,7 @@
+127.0.0.1:6379> LPOP tarefas
+"Estudar Redis"
+127.0.0.1:6379> RPOP tarefas
+"Dormir"
+127.0.0.1:6379> LRANGE tarefas 0 -1
+1) "Fazer Exercícios Práticos"
+2) "Tomar Café"

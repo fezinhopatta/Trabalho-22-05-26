@@ -1,0 +1,4 @@
+127.0.0.1:6379> LPOS tarefas Tomar Café
+(integer) 1
+127.0.0.1:6379> LPOS tarefas Dormir COUNT 0
+(empty array)
